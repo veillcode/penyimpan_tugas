@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penyimpanan Tugas & Dokumen</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; color: #333; }
+
+        .glass-panel { background: rgba(255,255,255,0.4); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 8px 32px rgba(31,38,135,0.1); border-radius: 24px; }
+
+        .page { width: 100%; max-width: 500px; position: absolute; transition: all 0.5s ease; }
+        .page.hidden { opacity: 0; visibility: hidden; transform: scale(0.95); pointer-events: none; }
+        .page.active { opacity: 1; visibility: visible; transform: scale(1); position: relative; }
+
+        /* Auth */
+        #auth-page { padding: 40px 30px; text-align: center; }
+        .auth-header h2 { font-weight: 600; margin-bottom: 5px; color: #2c3e50; }
+        .auth-header p  { font-size: 0.9rem; color: #555; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group input { width: 100%; padding: 15px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.6); background: rgba(255,255,255,0.5); font-size: 1rem; outline: none; transition: 0.3s; font-family: 'Poppins', sans-serif; }
+        .input-group input:focus { background: rgba(255,255,255,0.8); border-color: #8ec5fc; }
+        .error-msg { font-size: 0.85rem; font-weight: 500; margin-bottom: 10px; min-height: 20px; display: none; text-align: left; padding-left: 5px; }
+        .error-msg.show { display: block; }
+        .btn-primary { width: 100%; padding: 15px; border-radius: 16px; border: none; background: linear-gradient(135deg, #66a6ff 0%, #89f7fe 100%); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.3s; font-family: 'Poppins', sans-serif; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,166,255,0.6); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .toggle-auth { margin-top: 20px; font-size: 0.9rem; color: #555; cursor: pointer; text-decoration: underline; }
+
+        /* Dashboard */
+        #dashboard-page { padding: 30px; max-width: 600px; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.5); padding-bottom: 15px; }
+        .btn-logout { background: rgba(231,76,60,0.8); border: none; padding: 8px 15px; border-radius: 10px; color: white; cursor: pointer; font-size: 0.85rem; transition: 0.3s; font-family: 'Poppins', sans-serif; }
+        .btn-logout:hover { background: rgba(231,76,60,1); }
+        .task-form { display: flex; flex-direction: column; gap: 15px; margin-bottom: 30px; }
+        .task-form input[type="text"] { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.6); background: rgba(255,255,255,0.6); outline: none; font-family: 'Poppins', sans-serif; }
+        .file-upload-wrapper { display: flex; align-items: center; gap: 10px; }
+        input[type="file"] { display: none; }
+        .custom-file-btn { padding: 10px 15px; background: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.8); border-radius: 12px; cursor: pointer; font-size: 0.9rem; transition: 0.3s; }
+        .custom-file-btn:hover { background: rgba(255,255,255,0.8); }
+        .file-name-display { font-size: 0.85rem; color: #666; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .btn-save { padding: 12px; border-radius: 12px; border: none; background: #2c3e50; color: white; cursor: pointer; transition: 0.3s; font-family: 'Poppins', sans-serif; font-size: 0.95rem; }
+        .btn-save:hover { background: #1a252f; }
+        .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Task List */
+        .task-list { display: flex; flex-direction: column; gap: 15px; max-height: 350px; overflow-y: auto; padding-right: 5px; }
+        .task-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(255,255,255,0.45); border: 1px solid rgba(255,255,255,0.6); border-radius: 16px; transition: 0.3s; }
+        .task-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.6); }
+        .task-card.completed .task-title { text-decoration: line-through; color: #999; }
+        .task-info { display: flex; flex-direction: column; gap: 5px; }
+        .task-title { font-weight: 600; color: #2c3e50; }
+        .task-file { font-size: 0.8rem; }
+        .task-actions { display: flex; gap: 10px; flex-shrink: 0; }
+        .action-btn { width: 35px; height: 35px; border-radius: 10px; border: none; cursor: pointer; color: white; transition: 0.3s; }
+        .action-btn:hover { filter: brightness(1.15); transform: scale(1.05); }
+        .empty-state { text-align: center; color: #888; font-size: 0.9rem; padding: 20px 0; }
+
+        @media (max-width: 480px) {
+            .file-upload-wrapper { flex-direction: column; align-items: flex-start; }
+            .task-card { flex-direction: column; align-items: flex-start; gap: 15px; }
+            .task-actions { align-self: flex-end; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Halaman Auth -->
+<div id="auth-page" class="page glass-panel active">
+    <div class="auth-header">
+        <h2 id="auth-title">Login</h2>
+        <p id="auth-subtitle">Silakan masuk ke akun Anda</p>
+    </div>
+    <div class="input-group">
+        <input type="text" id="username" placeholder="Username" autocomplete="off">
+    </div>
+    <div class="input-group">
+        <input type="password" id="password" placeholder="Password">
+    </div>
+    <p id="error-msg" class="error-msg"></p>
+    <button id="btnAuth" class="btn-primary">Masuk</button>
+    <p class="toggle-auth" id="toggleAuth">Belum punya akun? Daftar di sini</p>
+</div>
+
+<!-- Halaman Dashboard -->
+<div id="dashboard-page" class="page glass-panel hidden">
+    <div class="dashboard-header">
+        <div>
+            <h2 id="welcome-msg">Halo! 👋</h2>
+            <p id="date-display" style="font-size:0.8rem;color:#555;"></p>
+        </div>
+        <button class="btn-logout" id="btnLogout">
+            <i class="fa-solid fa-right-from-bracket"></i> Keluar
+        </button>
+    </div>
+
+    <div class="task-form">
+        <input type="text" id="taskInput" placeholder="Ketik nama tugas baru..." autocomplete="off">
+        <div class="file-upload-wrapper">
+            <label for="fileInput" class="custom-file-btn">
+                <i class="fa-solid fa-paperclip"></i> Pilih Dokumen
+            </label>
+            <input type="file" id="fileInput">
+            <span id="fileName" class="file-name-display">Belum ada file</span>
+        </div>
+        <button id="btnSaveTask" class="btn-save">Simpan Tugas</button>
+    </div>
+
+    <div class="task-list" id="taskList"></div>
+</div>
+
+<script>
+    const API = "https://penyimpantugas-production.up.railway.app";
+
+    // ── Elemen DOM ────────────────────────────────────────────────────────────
+    const authPage      = document.getElementById("auth-page");
+    const dashboardPage = document.getElementById("dashboard-page");
+    const authTitle     = document.getElementById("auth-title");
+    const authSubtitle  = document.getElementById("auth-subtitle");
+    const btnAuth       = document.getElementById("btnAuth");
+    const toggleAuth    = document.getElementById("toggleAuth");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const errorMsg      = document.getElementById("error-msg");
+    const welcomeMsg    = document.getElementById("welcome-msg");
+    const fileInput     = document.getElementById("fileInput");
+    const fileNameDisp  = document.getElementById("fileName");
+    const taskInput     = document.getElementById("taskInput");
+    const taskList      = document.getElementById("taskList");
+
+    let isLoginMode = true;
+
+    // ── Helper Pesan ─────────────────────────────────────────────────────────
+    function showMsg(msg, isSuccess = false) {
+        errorMsg.innerText = msg;
+        errorMsg.style.color = isSuccess ? "#27ae60" : "#e74c3c";
+        errorMsg.classList.add("show");
+    }
+    function hideMsg() {
+        errorMsg.classList.remove("show");
+        errorMsg.innerText = "";
+    }
+    usernameInput.addEventListener("input", hideMsg);
+    passwordInput.addEventListener("input", hideMsg);
+
+    // ── Toggle Login / Register ───────────────────────────────────────────────
+    toggleAuth.addEventListener("click", () => {
+        isLoginMode = !isLoginMode;
+        hideMsg();
+        usernameInput.value = "";
+        passwordInput.value = "";
+        if (isLoginMode) {
+            authTitle.innerText    = "Login";
+            authSubtitle.innerText = "Silakan masuk ke akun Anda";
+            btnAuth.innerText      = "Masuk";
+            toggleAuth.innerText   = "Belum punya akun? Daftar di sini";
+        } else {
+            authTitle.innerText    = "Register";
+            authSubtitle.innerText = "Buat akun baru Anda";
+            btnAuth.innerText      = "Daftar Sekarang";
+            toggleAuth.innerText   = "Sudah punya akun? Login di sini";
+        }
+    });
+
+    // ── Proses Auth ───────────────────────────────────────────────────────────
+    btnAuth.addEventListener("click", async () => {
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value.trim();
+        if (!username || !password) { showMsg("Username dan Password tidak boleh kosong!"); return; }
+
+        btnAuth.disabled   = true;
+        btnAuth.innerText  = isLoginMode ? "Masuk..." : "Mendaftar...";
+
+        try {
+            const endpoint = isLoginMode ? "/login" : "/register";
+            const res = await fetch(API + endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+
+            if (data.status === "sukses") {
+                if (isLoginMode) {
+                    // Simpan sesi ke sessionStorage
+                    sessionStorage.setItem("loggedInUser",   data.username);
+                    sessionStorage.setItem("loggedInUserId", data.user_id);
+                    goToDashboard(data.username);
+                } else {
+                    showMsg("Pendaftaran berhasil! Silakan login.", true);
+                    setTimeout(() => {
+                        toggleAuth.click();
+                        usernameInput.value = username;
+                    }, 1500);
+                }
+            } else {
+                showMsg(data.pesan);
+            }
+        } catch (err) {
+            showMsg("Gagal terhubung ke server. Pastikan back.py sudah berjalan!");
+            console.error(err);
+        } finally {
+            btnAuth.disabled  = false;
+            btnAuth.innerText = isLoginMode ? "Masuk" : "Daftar Sekarang";
+        }
+    });
+
+    // ── Transisi Halaman ──────────────────────────────────────────────────────
+    function goToDashboard(username) {
+        authPage.classList.replace("active", "hidden");
+        setTimeout(() => {
+            dashboardPage.classList.replace("hidden", "active");
+            welcomeMsg.innerText = `Halo, ${username}! 👋`;
+            const opt = { weekday:"long", year:"numeric", month:"long", day:"numeric" };
+            document.getElementById("date-display").innerText =
+                new Date().toLocaleDateString("id-ID", opt);
+            loadTasks();
+        }, 300);
+    }
+
+    document.getElementById("btnLogout").addEventListener("click", () => {
+        sessionStorage.clear();
+        dashboardPage.classList.replace("active", "hidden");
+        setTimeout(() => {
+            authPage.classList.replace("hidden", "active");
+            usernameInput.value = "";
+            passwordInput.value = "";
+            hideMsg();
+            taskList.innerHTML  = "";
+        }, 300);
+    });
+
+    window.onload = () => {
+        const user   = sessionStorage.getItem("loggedInUser");
+        if (user) goToDashboard(user);
+    };
+
+    // ── File Input ────────────────────────────────────────────────────────────
+    fileInput.addEventListener("change", function () {
+        fileNameDisp.innerText = this.files[0] ? this.files[0].name : "Belum ada file";
+    });
+
+    // ── Simpan Tugas ─────────────────────────────────────────────────────────
+    document.getElementById("btnSaveTask").addEventListener("click", async () => {
+        const userId    = sessionStorage.getItem("loggedInUserId");
+        const taskText  = taskInput.value.trim();
+        const fileObj   = fileInput.files[0];
+
+        if (!taskText)  { alert("Nama tugas tidak boleh kosong!"); return; }
+        if (!fileObj)   { alert("Pilih dokumen terlebih dahulu!"); return; }
+
+        const formData = new FormData();
+        formData.append("user_id",    userId);
+        formData.append("nama_tugas", taskText);
+        formData.append("dokumen",    fileObj);
+
+        const btn = document.getElementById("btnSaveTask");
+        btn.innerText = "Mengunggah...";
+        btn.disabled  = true;
+
+        try {
+            const res  = await fetch(API + "/upload-tugas", { method: "POST", body: formData });
+            const data = await res.json();
+
+            if (data.status === "sukses") {
+                taskInput.value       = "";
+                fileInput.value       = "";
+                fileNameDisp.innerText = "Belum ada file";
+                loadTasks();
+            } else {
+                alert("Error: " + data.pesan);
+            }
+        } catch (err) {
+            alert("Gagal terhubung ke server. Pastikan back.py sudah berjalan!");
+            console.error(err);
+        } finally {
+            btn.innerText = "Simpan Tugas";
+            btn.disabled  = false;
+        }
+    });
+
+    // ── Load Daftar Tugas ─────────────────────────────────────────────────────
+    async function loadTasks() {
+        const userId = sessionStorage.getItem("loggedInUserId");
+        if (!userId) return;
+
+        taskList.innerHTML = `<p class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Memuat tugas...</p>`;
+
+        try {
+            const res  = await fetch(`${API}/tugas/${userId}`);
+            const data = await res.json();
+
+            taskList.innerHTML = "";
+
+            if (!data.tasks || data.tasks.length === 0) {
+                taskList.innerHTML = `<p class="empty-state"><i class="fa-regular fa-folder-open"></i> Belum ada tugas.</p>`;
+                return;
+            }
+
+            data.tasks.forEach(task => renderTask(task));
+        } catch (err) {
+            taskList.innerHTML = `<p class="empty-state" style="color:#e74c3c;">Gagal memuat tugas.</p>`;
+            console.error(err);
+        }
+    }
+
+    function renderTask(task) {
+        const ext = task.file ? task.file.split(".").pop().toLowerCase() : "";
+        let icon = "fa-file";
+        if (ext === "pdf")                            icon = "fa-file-pdf";
+        else if (["jpg","jpeg","png","gif"].includes(ext)) icon = "fa-file-image";
+        else if (["doc","docx"].includes(ext))        icon = "fa-file-word";
+        else if (["xls","xlsx"].includes(ext))        icon = "fa-file-excel";
+        else if (["ppt","pptx"].includes(ext))        icon = "fa-file-powerpoint";
+        else if (ext === "zip")                       icon = "fa-file-zipper";
+
+        const fileHTML = task.file
+            ? `<div class="task-file">
+                 <a href="${task.link}" target="_blank" style="text-decoration:none;color:#66a6ff;font-weight:500;">
+                   <i class="fa-solid ${icon}"></i> Buka ${task.file}
+                 </a>
+               </div>`
+            : `<div class="task-file" style="color:#aaa;"><i class="fa-solid fa-link-slash"></i> Tanpa lampiran</div>`;
+
+        const isDone    = task.completed ? "completed" : "";
+        const btnIcon   = task.completed ? "fa-rotate-left" : "fa-check";
+        const btnColor  = task.completed ? "rgba(149,165,166,0.8)" : "rgba(46,204,113,0.8)";
+
+        const card = document.createElement("div");
+        card.className = `task-card ${isDone}`;
+        card.innerHTML = `
+            <div class="task-info">
+                <div class="task-title">${task.title}</div>
+                ${fileHTML}
+            </div>
+            <div class="task-actions">
+                <button class="action-btn" style="background:${btnColor}"
+                    onclick="toggleTask(${task.id}, this)">
+                    <i class="fa-solid ${btnIcon}"></i>
+                </button>
+                <button class="action-btn" style="background:rgba(231,76,60,0.8)"
+                    onclick="deleteTask(${task.id}, this)">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        `;
+        taskList.appendChild(card);
+    }
+
+    // ── Toggle Selesai ────────────────────────────────────────────────────────
+    window.toggleTask = async function (taskId, btn) {
+        btn.disabled = true;
+        try {
+            const res  = await fetch(`${API}/tugas/${taskId}/toggle`, { method: "PATCH" });
+            const data = await res.json();
+            if (data.status === "sukses") loadTasks();
+        } catch (err) { console.error(err); }
+        finally { btn.disabled = false; }
+    };
+
+    // ── Hapus Tugas ───────────────────────────────────────────────────────────
+    window.deleteTask = async function (taskId, btn) {
+        if (!confirm("Yakin ingin menghapus tugas ini?")) return;
+        btn.disabled = true;
+        try {
+            const res  = await fetch(`${API}/tugas/${taskId}`, { method: "DELETE" });
+            const data = await res.json();
+            if (data.status === "sukses") loadTasks();
+        } catch (err) { console.error(err); }
+        finally { btn.disabled = false; }
+    };
+</script>
+</body>
+</html>
